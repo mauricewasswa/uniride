@@ -1,184 +1,164 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'navbar.dart';
 
-class SignInPage2 extends StatelessWidget {
-  const SignInPage2({Key? key}) : super(key: key);
+class SignInPage2 extends StatefulWidget {
+  const SignInPage2({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final bool isSmallScreen = MediaQuery.of(context).size.width < 600;
-
-    return Scaffold(
-        body: Center(
-            child: isSmallScreen
-                ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                _Logo(),
-                _FormContent(),
-              ],
-            )
-                : Container(
-              padding: const EdgeInsets.all(32.0),
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: Row(
-                children: const [
-                  Expanded(child: _Logo()),
-                  Expanded(
-                    child: Center(child: _FormContent()),
-                  ),
-                ],
-              ),
-            )));
-  }
+  State<SignInPage2> createState() => _SignInPage2State();
 }
 
-class _Logo extends StatelessWidget {
-  const _Logo({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isSmallScreen = MediaQuery.of(context).size.width < 600;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        FlutterLogo(size: isSmallScreen ? 100 : 200),
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            "Welcome to Flutter!",
-            textAlign: TextAlign.center,
-            style: isSmallScreen
-                ? Theme.of(context).textTheme.headlineMedium
-                : Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(color: Colors.black),
-          ),
-        )
-      ],
-    );
-  }
-}
-
-class _FormContent extends StatefulWidget {
-  const _FormContent({Key? key}) : super(key: key);
-
-  @override
-  State<_FormContent> createState() => __FormContentState();
-}
-
-class __FormContentState extends State<_FormContent> {
-  bool _isPasswordVisible = false;
-  bool _rememberMe = false;
-
+class _SignInPage2State extends State<SignInPage2> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
+  // Text editing controllers to retrieve input values
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+
+  Future<void> loginuser(BuildContext context) async {
+    final supabase = Supabase.instance.client;
+
+    try {
+      // Select email and password from users table based on the provided email
+      final response = await supabase
+          .from('users')
+          .select('email, password')
+          .eq('email', _emailController.text)
+          .single(); // Use .single() if you expect only one row of result
+
+      if (response != null && response.isNotEmpty) {
+        final retrievedEmail = response['email'];
+        final retrievedPassword = response['password'];
+
+        // Check if the entered password matches the retrieved one
+        if (retrievedPassword == _passwordController.text) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Login successful!"),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Navigate to the home screen (replace with your actual Home screen widget)
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => Material3BottomNav()), // Replace HomeScreen with your actual home screen widget
+          );
+        } else {
+          // Invalid password
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Invalid password"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        // User not found
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("User not found"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Catch any errors (e.g., network issues, authentication errors, etc.)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      print("Error during login: $e");
+    }
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 300),
-      child: Form(
-        key: _formKey,
+    return Scaffold(
+      body: Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TextFormField(
-              validator: (value) {
-                // add email validation
-                if (value == null || value.isEmpty) {
-                  return 'Please enter some text';
-                }
-
-                bool emailValid = RegExp(
-                    r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
-                    .hasMatch(value);
-                if (!emailValid) {
-                  return 'Please enter a valid email';
-                }
-
-                return null;
-              },
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                hintText: 'Enter your email',
-                prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            _gap(),
-            TextFormField(
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter some text';
-                }
-
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
-                }
-                return null;
-              },
-              obscureText: !_isPasswordVisible,
-              decoration: InputDecoration(
-                  labelText: 'Password',
-                  hintText: 'Enter your password',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(_isPasswordVisible
-                        ? Icons.visibility_off
-                        : Icons.visibility),
-                    onPressed: () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      });
-                    },
-                  )),
-            ),
-            _gap(),
-            CheckboxListTile(
-              value: _rememberMe,
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _rememberMe = value;
-                });
-              },
-              title: const Text('Remember me'),
-              controlAffinity: ListTileControlAffinity.leading,
-              dense: true,
-              contentPadding: const EdgeInsets.all(0),
-            ),
-            _gap(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4)),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.all(10.0),
-                  child: Text(
-                    'Sign in',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const SizedBox(
+                    height: 200,
                   ),
-                ),
-                onPressed: () {
-                  // if (_formKey.currentState?.validate() ?? false) {
-                    // Navigate to Material3BottomNav after form validation
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => Material3BottomNav(), // Replace with your actual widget
-                      ),
-                    );
-                  // }
-                },
+                  const Text(
+                    "Login",
+                    style: TextStyle(
+                      fontSize: 50,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        // Email Input
+                        TextFormField(
+                          controller: _emailController,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            hintText: 'Enter your Email',
+                            prefixIcon: Icon(Icons.mail),
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your email';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
 
+                        // Password Input
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Password',
+                            hintText: 'Enter your Password',
+                            prefixIcon: Icon(Icons.lock),
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your password';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Login Button
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4)),
+                          ),
+                          onPressed: () {
+                            if (_formKey.currentState?.validate() ?? false) {
+                              loginuser(context); // Call the login function if the form is valid
+                            }
+                          },
+                          child: const Text("Login"),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -186,6 +166,4 @@ class __FormContentState extends State<_FormContent> {
       ),
     );
   }
-
-  Widget _gap() => const SizedBox(height: 16);
 }
